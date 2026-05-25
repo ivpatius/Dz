@@ -13,7 +13,6 @@ from sklearn.tree import DecisionTreeRegressor, DecisionTreeClassifier
 
 
 class TargetEncoder:
-    """Простая target encoding-реализация для категориальных признаков."""
 
     def __init__(self, cat_features: Iterable[int] | None = None, ordered: bool = False, prior_weight: float = 1.0):
         self.cat_features = [] if cat_features is None else list(cat_features)
@@ -47,7 +46,6 @@ class TargetEncoder:
                     mapping[str(val)] = (sums[val] + self.prior_weight * self.global_mean_) / (counts[val] + self.prior_weight)
                 X_encoded[:, col] = encoded_col
             else:
-                # Векторная версия через pandas не используется: оставим чистый numpy/python-словарь.
                 unique_values, inverse = np.unique(values.astype(str), return_inverse=True)
                 sums = np.bincount(inverse, weights=y01, minlength=len(unique_values))
                 counts = np.bincount(inverse, minlength=len(unique_values))
@@ -80,15 +78,12 @@ class TargetEncoder:
             try:
                 out[:, j] = col.astype(float)
             except Exception:
-                # Если категориальный столбец не был указан в cat_features,
-                # переводим его в устойчивые коды по значениям.
                 vals, inv = np.unique(col.astype(str), return_inverse=True)
                 out[:, j] = inv.astype(float)
         return out
 
 
 class Quantizer:
-    """Квантизатор числовых признаков: uniform, quantile, min_entropy/piecewise."""
 
     def __init__(self, quantization_type: str | None = None, nbins: int = 255, random_state: int | None = None):
         self.quantization_type = quantization_type
@@ -115,7 +110,6 @@ class Quantizer:
                 qs = np.linspace(0, 1, self.nbins + 1)[1:-1]
                 borders = np.quantile(col, qs)
             elif qtype in {"min_entropy", "piecewise"} and y is not None:
-                # Супервизированная квантизация: пороги берем из дерева по одному признаку.
                 tree = DecisionTreeClassifier(
                     max_leaf_nodes=min(self.nbins, max(2, np.unique(col).size)),
                     min_samples_leaf=max(2, int(0.01 * len(col))),
@@ -222,7 +216,6 @@ class Boosting(ClassifierMixin, BaseEstimator):
         return float(np.logaddexp(0.0, -yz).mean())
 
     def loss_derivative(self, y: np.ndarray, z: np.ndarray) -> np.ndarray:
-        # d/dz log(1 + exp(-y*z)) = -y / (1 + exp(y*z))
         return -np.asarray(y) * self.sigmoid(-np.asarray(y) * np.asarray(z))
 
     def _negative_gradient(self, y: np.ndarray, z: np.ndarray) -> np.ndarray:
@@ -254,7 +247,6 @@ class Boosting(ClassifierMixin, BaseEstimator):
                 if "random_state" in inspect.signature(self.base_model_class).parameters:
                     params["random_state"] = int(self.rng_.integers(0, 2**31 - 1))
             except (TypeError, ValueError):
-                # Для некоторых классов сигнатура может быть недоступна.
                 pass
         return self.base_model_class(**params)
 
